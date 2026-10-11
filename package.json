@@ -1,0 +1,27 @@
+{
+  "name": "crashworthy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Crash tests and a 5-star safety rating for AI agents that move money.",
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "crash": "tsx --env-file-if-exists=.env src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "neatlogs": "1.1.28",
+    "openai": "^7.32.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
