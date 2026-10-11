@@ -25,6 +25,11 @@ TypeScript · Node 22 · neatlogs SDK `neatlogs@1.1.28` (wrapOpenAI, trace/span,
 - **neatlogs connected** (project `f6d0cf85-94dd-42fb-8d22-f363d1cd4f2d`). SDK Doctor `--local` and `--probe` both pass (probe trace `727f7043053bbe33b0e8598feda56ab0`: exported, finalized, hierarchy/IO/tokens intact). The project key returns 401 on the Public API, as documented, so readback uses a `neatlogs-cli` device-flow login with file credentials (the container has no keychain).
 - **Fixture traces** (scripted stand-in model, no LLM): Crashworthy's real trace shape persisted. In S05 (`0c4f143b…`, bad run) the workflow root, the agent turn, two `issue_refund` TOOL spans with status ERROR (the 504 ghost timeout), a reply and the EVALUATOR verdict ("2 refunds issued for one order") were all read back with payloads intact. `crash verify` matched everything except LLM spans, which are expected to be absent with a scripted model. Found and fixed during readback: the SDK's own `neatlogs` binary shadowed the CLI under npx; CLI errors are on stderr; ingestion took about a minute (polling window raised to 3 minutes).
 
+- **Entire checkpoints.** Each was made in a fresh, Entire-tracked Claude Code session run inside the repo. Before publishing, the transcripts were checked for secrets.
+  - `01M4N924ANZNY3CAAR8SGPVFCV` on commit `12d0e40`: declared the JSON input MIME type on GUARDRAIL/EVALUATOR spans, a gap found during neatlogs readback. This one is stored as a git ref, which the sandbox's git proxy refuses to push (HTTP 403), so it is local only.
+  - `85959c6522ad` on commit `df8647b`: tests for the readback path→operation routing. Pushed on the `entire/checkpoints/v1` branch after switching Entire to branch storage.
+  - Link: https://entire.io/gh/NECOKIZZ/Crashworthy/commit/df8647bb1ae0c621910f563728432b9a433d4b30
+
 ### Pending
 - Real-model runs: needs `LITELLM_API_KEY`/`LITELLM_BASE_URL` (neatlogs is connected).
 - Baseline → heal → mutate → verify on real models; before/after traces; cfo.ai business plan; demo video; #neatHack posts.
