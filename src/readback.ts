@@ -258,7 +258,7 @@ function decode(f?: PayloadField) {
 export const traceUrl = (host: string, traceId: string) => `${host.replace(/\/$/, "")}/traces/${traceId}`;
 
 /** Map a Public API path to its operationId and path parameters. */
-function toOperation(path: string): { operationId: string; params: Record<string, string> } {
+export function toOperation(path: string): { operationId: string; params: Record<string, string> } {
   const routes: [RegExp, string, string[]][] = [
     [/^\/api\/v1\/public\/whoami$/, "get_api_v1_public_whoami", []],
     [/^\/api\/v1\/public\/traces$/, "get_api_v1_public_traces", []],
