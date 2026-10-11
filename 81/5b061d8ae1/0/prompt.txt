@@ -1,0 +1,23 @@
+Reply with the single word OK
+
+---
+
+Reply with the single word OK
+
+---
+
+<task-notification>
+<task-id>bjmhgvqc4</task-id>
+<tool-use-id>toolu_011Aiz4ZYLKwnRJ6BasTkEw3</tool-use-id>
+<output-file>/tmp/claude-0/-home-user-Crashworthy/3dc7cf1a-3288-5796-b7a7-61af933f6e29/tasks/bjmhgvqc4.output</output-file>
+<status>completed</status>
+<summary>Background command "cd /home/user/Crashworthy; pnpm crash verify run_20261011213955_2335b5 2&gt;&amp;1 | tail -25" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+You are the Crashworthy fixer. Read the repair brief at fixer-briefs/round-01-v2.md with the Read tool and follow it exactly.
+Make ONE change: either edit src/dummy/prompt.md, or add/modify ONE guard in src/dummy/guards.ts. You cannot edit anything else.
+After editing, run: npx tsc --noEmit
+Finish with a single line of JSON and nothing after it:
+{"root_cause":"...","target_scenarios":["..."],"change_type":"prompt"|"guard","summary":"one sentence"}
