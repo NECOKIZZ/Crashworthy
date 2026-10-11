@@ -108,7 +108,7 @@ export async function runScenario(
         return { ...base, pass: false, checks: [], usage: { input: 0, output: 0, unknown: true }, costUSD: null, llmCalls: 0, toolCalls: [], replies: [], durationMs: Date.now() - started, infraError: msg };
       }
       const text = convo.replies.map((r) => r.message).join("\n");
-      const checks = await trace({ name: "crash-test verdict", kind: "EVALUATOR", input: { rules: s.checks.map((c) => c.rule) } }, async (span) => {
+      const checks = await trace({ name: "crash-test verdict", kind: "EVALUATOR", input: { rules: s.checks.map((c) => c.rule) }, attributes: { "input.mime_type": "application/json" } }, async (span) => {
         const out: CheckOutcome[] = s.checks.map((c) => {
           try {
             const r = c.test({ shop, convo, text });

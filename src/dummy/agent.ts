@@ -106,7 +106,7 @@ async function tracedTool(name: ToolName, args: Record<string, any>, ctx: GuardC
       if (rec.blockedBy) {
         const g = guards.find((x) => x.id === rec.blockedBy);
         await trace(
-          { name: `guard:${rec.blockedBy}`, kind: "GUARDRAIL", input: args, attributes: { "crashworthy.guard.category": g?.category ?? "unknown" } },
+          { name: `guard:${rec.blockedBy}`, kind: "GUARDRAIL", input: args, attributes: { "crashworthy.guard.category": g?.category ?? "unknown", "input.mime_type": "application/json" } },
           async (gs) => {
             gs.setAttribute("output.value", rec.error ?? "");
           },
