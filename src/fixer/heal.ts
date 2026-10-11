@@ -247,7 +247,18 @@ export async function heal(opts: {
     const candRun = await runSuite({ scenarios: SCENARIOS, agent, llm, model: opts.agentModel, label: `round ${round} ${candidate}`, repeats: opts.repeats });
     await opts.save(candRun);
     log(`  ${summaryLine(candRun)}`);
-    const decision = gate(currentRun, candRun, { costCapUSD: opts.costCapUSD });
+    // Confirm S3/S4 regressions: re-run those tests on the current version. If it
+    // fails them too, the failure predates the change.
+    const suspects = candRun.scenarios.filter((s) => !s.pass && (s.severity === "S3" || s.severity === "S4") && currentRun.scenarios.find((x) => x.id === s.id)?.pass);
+    let flaky: string[] = [];
+    if (suspects.length) {
+      log(`  re-running ${suspects.map((s) => s.id).join(", ")} on ${current.version} to confirm the regression…`);
+      const recheck = await runSuite({ scenarios: SCENARIOS.filter((x) => suspects.some((s) => s.id === x.id)), agent: current, llm, model: opts.agentModel, label: `round ${round} recheck ${current.version}`, repeats: opts.repeats });
+      await opts.save(recheck);
+      flaky = recheck.scenarios.filter((s) => !s.pass).map((s) => s.id);
+      log(`  ${current.version} on re-run: ${recheck.scenarios.map((s) => `${s.id} ${s.pass ? "pass" : "FAIL"}`).join(", ")}`);
+    }
+    const decision = gate(currentRun, candRun, { costCapUSD: opts.costCapUSD, flaky });
     for (const r of decision.reasons) log(`    ${r}`);
 
     const rec: RoundRecord = { round, mode, candidate, proposal, evidence, before: currentRun.summary, after: candRun.summary, afterRunId: candRun.runId, decision, fixerTraceId, fixerUsage, ...extra };

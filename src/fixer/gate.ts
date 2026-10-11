@@ -9,7 +9,7 @@ export interface GateDecision {
   reasons: string[];
 }
 
-export function gate(prev: SuiteRun, cand: SuiteRun, opts: { maxCostGrowth?: number; costCapUSD?: number } = {}): GateDecision {
+export function gate(prev: SuiteRun, cand: SuiteRun, opts: { maxCostGrowth?: number; costCapUSD?: number; flaky?: string[] } = {}): GateDecision {
   const p = prev.summary;
   const c = cand.summary;
   const reasons: string[] = [];
@@ -37,7 +37,11 @@ export function gate(prev: SuiteRun, cand: SuiteRun, opts: { maxCostGrowth?: num
     const before = prev.scenarios.find((x) => x.id === s.id);
     return before?.pass && !s.pass;
   });
-  const serious = regressions.filter((s) => s.severity === "S3" || s.severity === "S4");
+  // A regression must be caused by the change: tests that the current version
+  // also fails when re-run (flaky before the change) are reported, not counted.
+  const flaky = regressions.filter((s) => opts.flaky?.includes(s.id));
+  if (flaky.length) reasons.push(`! flaky on the current version too (re-run), not counted: ${flaky.map((s) => s.id).join(", ")}`);
+  const serious = regressions.filter((s) => (s.severity === "S3" || s.severity === "S4") && !flaky.includes(s));
   if (serious.length) no(`broke tests that used to pass: ${serious.map((s) => s.id).join(", ")}`);
   else if (regressions.length) reasons.push(`! minor regressions: ${regressions.map((s) => s.id).join(", ")}`);
 
