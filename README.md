@@ -45,13 +45,30 @@ cp .env.example .env          # fill in the keys (see below)
 pnpm crash models             # which models the LiteLLM proxy offers
 pnpm crash run                # crash-test the live agent (all 16 tests)
 pnpm crash verify             # read every trace of the last run back from neatlogs and audit it
-pnpm crash heal --rounds 6 --cost-round 5 --commit   # repair loop: one change per round, gated; round 5 tries to cut cost
+pnpm crash heal --rounds 6 --cost-round 5 --fixer claude-code --commit   # repair loop: one Entire-tracked change per round, gated; round 5 tries to cut cost
 pnpm crash mutate             # planted bugs: suite strength
 pnpm crash report             # site/index.html
 pnpm crash economics          # unit costs from neatlogs for the cfo.ai plan -> docs/economics.md
 pnpm crash shots              # report screenshots for posts -> site/shots/
 pnpm test && pnpm typecheck
 ```
+
+## Entire: every fix has a chain of custody
+
+`pnpm crash heal --fixer claude-code --commit` makes each repair a recorded engineering event:
+
+```
+neatlogs trace of the crash  →  Entire Graph locates the code  →  Claude Code session makes ONE change
+   →  gate re-runs all 16 tests  →  kept: commit   |   rolled back: attempt commit + revert commit
+   →  Entire checkpoint on that commit (the session's prompts, reasoning, edits)  →  Graph analysis of what changed
+```
+
+- **Graph localization.** For every failing test, `entire graph search` turns the failed rule ("At most one refund for KO-1042…") into ranked code locations. Results are limited to the agent and its sandbox (`src/dummy/`, `src/sandbox.ts`), so test code never reaches the fixer.
+- **The fixer is an Entire-tracked Claude Code session.** It runs headless inside the repo (`claude -p`, permission mode `dontAsk`). It may edit only `src/dummy/prompt.md` and `src/dummy/guards.ts`, and it cannot read the scenarios, tests, run results or docs (deny rules), so the hidden set stays hidden. After the session, any edit outside the agent rejects the round. Its brief is saved in `fixer-briefs/`.
+- **Rolled-back attempts stay on the record.** A rejected change is committed as `attempt(vN)` and immediately reverted, so its Entire checkpoint shows what the fixer tried and why the gate refused it.
+- **Checkpoint analysis.** `entire graph checkpoint <id>` reports what each fix changed at symbol level. For example, `src/dummy/guards.ts: signature_changed variable guards (19 dependents)`. This appears in the incident report next to the neatlogs trace IDs and the checkpoint link.
+- **Coding agents on this repo use Graph.** `entire graph init-agents` installed `.entire/graph-agent.md`, referenced from `AGENTS.md` and `CLAUDE.md`.
+- Checkpoints are stored on the `entire/checkpoints/v1` branch (`entire configure --checkpoint-backend branch`).
 
 ## neatlogs: how traces are produced and read back
 

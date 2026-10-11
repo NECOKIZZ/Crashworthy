@@ -30,6 +30,8 @@ TypeScript · Node 22 · neatlogs SDK `neatlogs@1.1.28` (wrapOpenAI, trace/span,
   - `85959c6522ad` on commit `df8647b`: tests for the readback path→operation routing. Pushed on the `entire/checkpoints/v1` branch after switching Entire to branch storage.
   - Link: https://entire.io/gh/NECOKIZZ/Crashworthy/commit/df8647bb1ae0c621910f563728432b9a433d4b30
 
+- **Deep Entire integration** (for Best Use of Entire). The fixer can now be an Entire-tracked Claude Code session (`heal --fixer claude-code --commit`). Each round goes: neatlogs failing traces → `entire graph search` localization (agent code only) → one Claude Code change under deny rules that keep the hidden set hidden → gate → a kept commit, or an attempt commit plus a revert → Entire checkpoint → `entire graph checkpoint` symbol-level change analysis in the incident report's chain of custody. **Rehearsal** in a throwaway clone (real Claude Code fixer, scripted stand-in agent, so fixture evidence): Graph located `src/dummy/tools.ts` and `src/sandbox.ts`; Claude Code wrote one cumulative per-order approval-limit guard (cost $0.107); the gate kept it (visible 50.9% → 78.9%, hidden held); the commit carried checkpoint `35e0c1867ac3`, and Graph reported `signature_changed variable guards (19 dependents)`. The rehearsal caught a real bug: neatlogs' secondary `Client` does not read `NEATLOGS_API_KEY` from the environment, so it is now passed explicitly. Also installed `entire graph init-agents`.
+
 ### Pending
 - Real-model runs: needs `LITELLM_API_KEY`/`LITELLM_BASE_URL` (neatlogs is connected).
 - Baseline → heal → mutate → verify on real models; before/after traces; cfo.ai business plan; demo video; #neatHack posts.

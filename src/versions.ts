@@ -31,7 +31,7 @@ const toVersionImports = (src: string) =>
     const abs = path.posix.join("src/dummy", spec);
     return `${pre}"../../${abs}"`;
   });
-const toLiveImports = (src: string) =>
+export const toLiveImports = (src: string) =>
   src.replace(/(from\s+|import\s*\(\s*)"\.\.\/\.\.\/(src\/[^"]+)"/g, (_m, pre: string, spec: string) => {
     let rel = path.posix.relative("src/dummy", spec);
     if (!rel.startsWith(".")) rel = `./${rel}`;

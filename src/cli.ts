@@ -1,6 +1,6 @@
 // crashworthy CLI
 //   crash run      [--split visible|hidden|all] [--only S05,S06] [--repeats N] [--agent versions/v3] [--label txt]
-//   crash heal     [--rounds N] [--repeats N] [--commit] [--cost-round N]
+//   crash heal     [--rounds N] [--repeats N] [--commit] [--cost-round N] [--fixer llm|claude-code]
 //   crash mutate   [--agent dir] [--only M01,M02]
 //   crash verify   <runId>        read every trace of a saved run back from neatlogs and audit it
 //   crash whoami                  check the neatlogs read credential and project
@@ -65,6 +65,7 @@ async function main() {
       commit: { type: "boolean", default: false },
       concurrency: { type: "string", default: "4" },
       "cost-round": { type: "string" },
+      fixer: { type: "string", default: "llm" },
     },
   });
 
@@ -123,6 +124,7 @@ async function main() {
         save,
         costCapUSD: process.env.CW_COST_CAP ? Number(process.env.CW_COST_CAP) : undefined,
         costRound: values["cost-round"] ? Number(values["cost-round"]) : undefined,
+        fixer: values.fixer === "claude-code" ? "claude-code" : "llm",
       });
       const f = await saveHealLog(log);
       await stopTelemetry();

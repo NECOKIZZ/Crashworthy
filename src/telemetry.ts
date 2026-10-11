@@ -27,7 +27,7 @@ export async function startTelemetry(workflowName: string) {
 
 /** The fixer's own reasoning is traced as a separate workflow. */
 export function fixerClient() {
-  return new Client({ workflowName: "crashworthy-fixer", tags: ["crashworthy", "neathack", "fixer"], disableExport: !process.env.NEATLOGS_API_KEY });
+  return new Client({ workflowName: "crashworthy-fixer", apiKey: process.env.NEATLOGS_API_KEY, tags: ["crashworthy", "neathack", "fixer"], disableExport: !process.env.NEATLOGS_API_KEY });
 }
 
 export async function stopTelemetry() {

@@ -85,7 +85,7 @@ ${heal ? gateMoment(heal) : ""}
 ${heal ? `<h2>Incident reports</h2><p class="muted">Each kept fix: the failure, its root cause from the neatlogs traces, the single change, and the proof.</p>
 ${heal.rounds.filter((r) => r.decision.accept).map((r) => incident(r)).join("\n") || '<p class="muted">No fix was kept.</p>'}
 <h2>Rolled back</h2>
-${heal.rounds.filter((r) => !r.decision.accept).map((r) => `<div class="card ir"><h3>Round ${r.round}${r.mode === "cost" ? " (cost-cutting)" : ""} · ${esc(r.candidate)}: ${esc(r.proposal.summary)}</h3><ul>${r.decision.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("\n") || '<p class="muted">Nothing was rolled back.</p>'}` : ""}
+${heal.rounds.filter((r) => !r.decision.accept).map((r) => `<div class="card ir"><h3>Round ${r.round}${r.mode === "cost" ? " (cost-cutting)" : ""} · ${esc(r.candidate)}: ${esc(r.proposal.summary)}</h3>${custody(r)}<ul>${r.decision.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("\n") || '<p class="muted">Nothing was rolled back.</p>'}` : ""}
 
 ${mut ? `<h2>Testing the tests: planted bugs</h2><div class="card tbl"><table><thead><tr><th>Planted bug</th><th>Result</th><th>Caught by</th></tr></thead><tbody>
 ${mut.mutants.map((m) => `<tr><td><b>${esc(m.bug)}</b><br><code>${esc(m.id)}</code></td><td class="${m.caught ? "pass" : "fail"}">${m.caught ? "Caught" : "Missed"}</td><td><code>${esc(m.caughtBy.join(", "))}</code></td></tr>`).join("\n")}
@@ -121,7 +121,22 @@ function incident(r: HealLog["rounds"][number]) {
 <p style="margin:0"><b>Root cause.</b> ${esc(r.proposal.root_cause)}</p>
 <p style="margin:6px 0 0"><b>Change.</b> ${r.proposal.change_type === "guard" ? "New/changed code guardrail" : "System prompt edit"} · targets <code>${esc(r.proposal.target_scenarios.join(", "))}</code>${r.commit ? ` · commit <code>${esc(r.commit)}</code>` : ""}</p>
 <p style="margin:6px 0 0"><b>Evidence.</b> ${r.evidence.map((e) => `<code>${esc(e.scenario)}</code> trace <code>${esc(e.traceId ?? "local")}</code>${e.source === "neatlogs" ? "" : " (local record)"}`).join(", ")}${r.fixerTraceId ? ` · fixer reasoning trace <code>${esc(r.fixerTraceId)}</code>` : ""}</p>
+${custody(r)}
 <ul>${r.decision.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
+}
+
+/** neatlogs trace → Entire Graph location → Entire checkpoint (the session that made the change) → commit → re-test. */
+function custody(r: HealLog["rounds"][number]) {
+  const steps: string[] = [];
+  const nl = r.evidence.filter((e) => e.source === "neatlogs" && e.traceId);
+  if (nl.length) steps.push(`<b>neatlogs</b> failing trace${nl.length > 1 ? "s" : ""} ${nl.map((e) => `<code>${esc(e.traceId!.slice(0, 12))}</code>`).join(", ")}`);
+  if (r.graph?.length) steps.push(`<b>Entire Graph</b> located ${r.graph.slice(0, 3).map((g) => `<code>${esc(g.file)}:${g.line}</code>`).join(", ")}`);
+  if (r.fixer === "claude-code") steps.push(`<b>Claude Code</b> session made the change${r.fixerCostUSD != null ? ` ($${r.fixerCostUSD.toFixed(3)})` : ""}`);
+  if (r.entire?.checkpointId) steps.push(`<b>Entire checkpoint</b> <a href="${esc(r.entire.url)}"><code>${esc(r.entire.checkpointId)}</code></a>${r.entire.changes.length ? ` · ${esc(r.entire.changes.slice(0, 3).join("; "))}` : ""}`);
+  else if (r.commit) steps.push(`<b>commit</b> <code>${esc(r.commit)}</code>`);
+  if (r.rollbackCommit) steps.push(`<b>rolled back</b> in <code>${esc(r.rollbackCommit)}</code>`);
+  if (r.afterRunId) steps.push(`<b>re-test</b> <code>${esc(r.afterRunId)}</code>`);
+  return steps.length ? `<p style="margin:8px 0 0" class="muted"><b>Chain of custody:</b> ${steps.join(" → ")}</p>` : "";
 }
 
 function chart(points: { label: string; s: SuiteRun["summary"]; kept: boolean }[]) {
