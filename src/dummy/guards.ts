@@ -3,4 +3,13 @@
 
 import type { Guard } from "./guard-api.js";
 
-export const guards: Guard[] = [];
+export const guards: Guard[] = [
+  {
+    id: "no-prod-delete-without-ticket",
+    category: "destructive",
+    description: "Production deletes need an approved change ticket and are never allowed during a code freeze; the tool has no ticket input, so block all calls.",
+    appliesTo: ["admin_delete_records"],
+    check: () =>
+      "Production data cannot be deleted by support or ops agents without an approved change ticket, and never during a code freeze. Tell the requester the deletion was NOT done and to go through the change-ticket process.",
+  },
+];
