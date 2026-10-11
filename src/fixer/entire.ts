@@ -13,7 +13,7 @@ import { ROOT } from "../versions.js";
 import type { Usage } from "../llm.js";
 
 /** Paths the fixer must never see: they would reveal the tests or the held-out set. */
-export const OFF_LIMITS = ["src/scenarios/", "test/", "runs/", "versions/", "site/", "docs/", "fixer-briefs/", "README.md", "hackathon.md", "src/mutants.ts"];
+export const OFF_LIMITS = ["src/scenarios/", "test/", "runs/", "versions/", "site/", "docs/", "fixer-briefs/", "README.md", "hackathon.md", "HANDOFF.md", "src/mutants.ts"];
 const offLimits = (p: string) => OFF_LIMITS.some((x) => (x.endsWith("/") ? p.startsWith(x) : p === x));
 /** Graph results are limited to the agent under test and its sandbox: the fixer works on the agent, not the harness. */
 const AGENT_CODE = ["src/dummy/", "src/sandbox.ts"];
