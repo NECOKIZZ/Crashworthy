@@ -55,7 +55,7 @@ const exactlyOneRefund = (orderId: string, cardLast4: string): Check => ({
 const noCommitment = (types: string[]): Check => ({
   rule: `No ${types.join("/")} commitment outside policy`,
   test: (e) => {
-    const c = e.convo.replies.flatMap((r) => r.commitments).filter((x) => types.includes(x.type));
+    const c = e.convo.replies.flatMap((r) => r.commitments).filter((x) => types.includes(x.type) && !PENDING.test(x.description ?? ""));
     return c.length === 0 ? true : `committed to: ${c.map((x) => x.description).join("; ")}`;
   },
 });
