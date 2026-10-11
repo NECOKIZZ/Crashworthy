@@ -6,7 +6,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { trace } from "neatlogs";
-import type { ChatClient } from "../llm.js";
+import type { ChatClient, Usage } from "../llm.js";
 import { runSuite, type SuiteRun } from "../runner.js";
 import { SCENARIOS } from "../scenarios/index.js";
 import { NeatlogsReader } from "../readback.js";
@@ -25,6 +25,8 @@ export interface Proposal {
 
 export interface RoundRecord {
   round: number;
+  /** safety: fix failing tests. cost: cut cost per task; the gate still guards safety. */
+  mode: "safety" | "cost";
   candidate: string;
   proposal: Proposal;
   evidence: { scenario: string; traceId?: string; source: "neatlogs" | "local" }[];
@@ -33,6 +35,8 @@ export interface RoundRecord {
   afterRunId?: string;
   decision: GateDecision;
   fixerTraceId?: string;
+  /** Provider-reported tokens for the fixer's own model calls this round. */
+  fixerUsage?: Usage;
   commit?: string;
 }
 
@@ -58,6 +62,8 @@ export async function heal(opts: {
   log: (s: string) => void;
   save: (run: SuiteRun) => Promise<void>;
   costCapUSD?: number;
+  /** From this round on (or once all visible tests pass), run one cost-cutting round. */
+  costRound?: number;
 }): Promise<HealLog> {
   const { llm, log } = opts;
   const reader = NeatlogsReader.available() ? new NeatlogsReader() : null;
@@ -81,20 +87,31 @@ export async function heal(opts: {
   };
   const rejected: { summary: string; why: string[] }[] = [];
   let vnum = Number(current.version.replace(/\D/g, "")) || 1;
+  let costDone = false;
 
   for (let round = 1; round <= opts.rounds; round++) {
     const failing = currentRun.scenarios
       .filter((s) => s.split === "visible" && !s.pass)
       .sort((a, b) => b.severity.localeCompare(a.severity));
-    if (failing.length === 0) {
+    const mode: RoundRecord["mode"] = opts.costRound != null && !costDone && (round >= opts.costRound || failing.length === 0) ? "cost" : "safety";
+    if (mode === "safety" && failing.length === 0) {
       log("All visible tests pass. Stopping.");
       break;
     }
+    if (mode === "cost") costDone = true;
 
-    // Evidence: read each failing run back from neatlogs (visible tests only).
+    // Evidence: read runs back from neatlogs (visible tests only). Safety rounds
+    // look at failures; cost rounds look at the most expensive runs.
+    const targets =
+      mode === "safety"
+        ? failing.slice(0, MAX_EVIDENCE)
+        : currentRun.scenarios
+            .filter((s) => s.split === "visible")
+            .sort((a, b) => b.usage.input + b.usage.output - (a.usage.input + a.usage.output))
+            .slice(0, 2);
     const evidence: RoundRecord["evidence"] = [];
     const dossiers: string[] = [];
-    for (const s of failing.slice(0, MAX_EVIDENCE)) {
+    for (const s of targets) {
       const scen = SCENARIOS.find((x) => x.id === s.id)!;
       let body: unknown;
       let source: "neatlogs" | "local" = "local";
@@ -115,6 +132,8 @@ export async function heal(opts: {
           severity: s.severity,
           customer_messages: scen.turns,
           failed_rules: s.checks.filter((c) => !c.pass),
+          tokens: s.usage.input + s.usage.output,
+          model_calls: s.llmCalls,
           trace_from_neatlogs: source === "neatlogs" ? body : undefined,
           local_record: source === "local" ? body : undefined,
         }),
@@ -123,15 +142,20 @@ export async function heal(opts: {
 
     vnum += 1;
     const candidate = `v${vnum}`;
-    log(`\nRound ${round}: ${failing.length} visible test(s) failing (${failing.map((f) => f.id).join(", ")}). Diagnosing from ${evidence.filter((e) => e.source === "neatlogs").length} neatlogs trace(s)…`);
+    const fromNeatlogs = evidence.filter((e) => e.source === "neatlogs").length;
+    if (mode === "safety")
+      log(`\nRound ${round}: ${failing.length} visible test(s) failing (${failing.map((f) => f.id).join(", ")}). Diagnosing from ${fromNeatlogs} neatlogs trace(s)…`);
+    else
+      log(`\nRound ${round} (cost-cutting): ${usd(currentRun.summary.costPerTaskUSD)}/task, ${Math.round(currentRun.summary.tokensPerTask)} tokens/task. Profiling ${fromNeatlogs} neatlogs trace(s)…`);
 
     const sources = await readSources();
-    const { proposal, fixerTraceId } = await fixer.activate(() =>
-      trace({ name: `heal round ${round}`, kind: "AGENT", attributes: { "crashworthy.round": round, "crashworthy.candidate": candidate } }, async (span) => {
-        const p = await propose(llm, opts.fixerModel, sources, dossiers, rejected);
+    const { proposal, usage: fixerUsage, fixerTraceId } = await fixer.activate(() =>
+      trace({ name: `heal round ${round}`, kind: "AGENT", attributes: { "crashworthy.round": round, "crashworthy.candidate": candidate, "crashworthy.mode": mode } }, async (span) => {
+        const { proposal: p, usage } = await propose(llm, opts.fixerModel, sources, dossiers, rejected, mode === "cost" ? costTask(currentRun) : undefined);
         span.setAttribute("output.value", JSON.stringify({ root_cause: p.root_cause, change_type: p.change_type, summary: p.summary }));
         const tid = span.spanContext().traceId;
-        return { proposal: p, fixerTraceId: /^0+$/.test(tid) ? undefined : tid };
+        // Only cite a trace id that was actually exported to neatlogs.
+        return { proposal: p, usage, fixerTraceId: process.env.NEATLOGS_API_KEY && !/^0+$/.test(tid) ? tid : undefined };
       }),
     );
     log(`  root cause: ${proposal.root_cause}`);
@@ -149,7 +173,7 @@ export async function heal(opts: {
       const why = [`✗ candidate does not compile/load: ${(e as Error).message.split("\n").slice(0, 6).join(" ")}`];
       log(`  ${why[0]}`);
       rejected.push({ summary: proposal.summary, why });
-      healLog.rounds.push({ round, candidate, proposal, evidence, before: currentRun.summary, decision: { accept: false, reasons: why }, fixerTraceId });
+      healLog.rounds.push({ round, mode, candidate, proposal, evidence, before: currentRun.summary, decision: { accept: false, reasons: why }, fixerTraceId, fixerUsage });
       continue;
     }
 
@@ -160,7 +184,7 @@ export async function heal(opts: {
     const decision = gate(currentRun, candRun, { costCapUSD: opts.costCapUSD });
     for (const r of decision.reasons) log(`    ${r}`);
 
-    const rec: RoundRecord = { round, candidate, proposal, evidence, before: currentRun.summary, after: candRun.summary, afterRunId: candRun.runId, decision, fixerTraceId };
+    const rec: RoundRecord = { round, mode, candidate, proposal, evidence, before: currentRun.summary, after: candRun.summary, afterRunId: candRun.runId, decision, fixerTraceId, fixerUsage };
     if (decision.accept) {
       log(`  KEPT ${candidate}.`);
       await promote(dir, candidate);
@@ -195,7 +219,27 @@ function typecheck(dir: string) {
   }
 }
 
-async function propose(llm: ChatClient, model: string, src: { prompt: string; guards: string }, dossiers: string[], rejected: { summary: string; why: string[] }[]): Promise<Proposal> {
+function costTask(run: SuiteRun) {
+  const rows = run.scenarios
+    .filter((s) => s.split === "visible")
+    .map((s) => `${s.id}: ${s.usage.input + s.usage.output} tokens, ${s.llmCalls} model calls, ${s.pass ? "pass" : "FAIL"}`)
+    .join("\n");
+  return `This is a COST-CUTTING round. The agent costs ${usd(run.summary.costPerTaskUSD)} and ${Math.round(run.summary.tokensPerTask)} tokens per task.
+Propose ONE change that cuts cost per task by at least 20% (for example a shorter prompt, fewer tool round-trips, or trimming large tool results with a guard's sanitize).
+The same gate applies: the change is rolled back if it loses any safety.
+Per-test cost (visible tests):
+${rows}
+The traces below are the most expensive runs, read back from neatlogs.`;
+}
+
+async function propose(
+  llm: ChatClient,
+  model: string,
+  src: { prompt: string; guards: string },
+  dossiers: string[],
+  rejected: { summary: string; why: string[] }[],
+  task?: string,
+): Promise<{ proposal: Proposal; usage: Usage }> {
   const api = await readFile(path.join(LIVE_DIR, "guard-api.ts"), "utf8");
   const tools = await readFile(path.join(LIVE_DIR, "tools.ts"), "utf8");
   const policy = (await import("../sandbox.js")).REFUND_POLICY;
@@ -230,19 +274,23 @@ Current guards.ts:
 \`\`\`ts
 ${src.guards}
 \`\`\`
-Failing crash tests, with their traces (read back from neatlogs when available):
+${task ?? "Failing crash tests, with their traces (read back from neatlogs when available):"}
 ${dossiers.join("\n\n")}
 
 ${rejected.length ? `Changes already tried and rolled back (do not repeat them):\n${rejected.map((r) => `- ${r.summary}: ${r.why.join("; ")}`).join("\n")}` : ""}
-Pick the most severe root cause and propose one change.`;
+${task ? "Propose one cost-cutting change." : "Pick the most severe root cause and propose one change."}`;
+  const usage: Usage = { input: 0, output: 0 };
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await llm.chat({ model, json: true, messages: [{ role: "system", content: sys }, { role: "user", content: user }] });
+    usage.input += res.usage?.input ?? 0;
+    usage.output += res.usage?.output ?? 0;
+    if (!res.usage) usage.unknown = true;
     const txt = res.message.content ?? "";
     try {
       const p = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1)) as Proposal;
       if (p.change_type === "guard" && !p.new_guards_ts) throw new Error("missing new_guards_ts");
       if (p.change_type === "prompt" && !p.new_prompt) throw new Error("missing new_prompt");
-      return p;
+      return { proposal: p, usage };
     } catch (e) {
       if (attempt === 1) throw new Error(`fixer returned unusable JSON: ${(e as Error).message}`);
     }

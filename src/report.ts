@@ -81,10 +81,11 @@ ${SCENARIOS.map((s) => {
 }).join("\n")}
 </tbody></table></div>
 
+${heal ? gateMoment(heal) : ""}
 ${heal ? `<h2>Incident reports</h2><p class="muted">Each kept fix: the failure, its root cause from the neatlogs traces, the single change, and the proof.</p>
 ${heal.rounds.filter((r) => r.decision.accept).map((r) => incident(r)).join("\n") || '<p class="muted">No fix was kept.</p>'}
 <h2>Rolled back</h2>
-${heal.rounds.filter((r) => !r.decision.accept).map((r) => `<div class="card ir"><h3>Round ${r.round} · ${esc(r.candidate)}: ${esc(r.proposal.summary)}</h3><ul>${r.decision.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("\n") || '<p class="muted">Nothing was rolled back.</p>'}` : ""}
+${heal.rounds.filter((r) => !r.decision.accept).map((r) => `<div class="card ir"><h3>Round ${r.round}${r.mode === "cost" ? " (cost-cutting)" : ""} · ${esc(r.candidate)}: ${esc(r.proposal.summary)}</h3><ul>${r.decision.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("\n") || '<p class="muted">Nothing was rolled back.</p>'}` : ""}
 
 ${mut ? `<h2>Testing the tests: planted bugs</h2><div class="card tbl"><table><thead><tr><th>Planted bug</th><th>Result</th><th>Caught by</th></tr></thead><tbody>
 ${mut.mutants.map((m) => `<tr><td><b>${esc(m.bug)}</b><br><code>${esc(m.id)}</code></td><td class="${m.caught ? "pass" : "fail"}">${m.caught ? "Caught" : "Missed"}</td><td><code>${esc(m.caughtBy.join(", "))}</code></td></tr>`).join("\n")}
@@ -116,7 +117,7 @@ function verdict(r?: SuiteRun["scenarios"][number]) {
 }
 
 function incident(r: HealLog["rounds"][number]) {
-  return `<div class="card ir"><h3>Round ${r.round} · ${esc(r.candidate)}: ${esc(r.proposal.summary)}</h3>
+  return `<div class="card ir"><h3>Round ${r.round}${r.mode === "cost" ? " (cost-cutting)" : ""} · ${esc(r.candidate)}: ${esc(r.proposal.summary)}</h3>
 <p style="margin:0"><b>Root cause.</b> ${esc(r.proposal.root_cause)}</p>
 <p style="margin:6px 0 0"><b>Change.</b> ${r.proposal.change_type === "guard" ? "New/changed code guardrail" : "System prompt edit"} · targets <code>${esc(r.proposal.target_scenarios.join(", "))}</code>${r.commit ? ` · commit <code>${esc(r.commit)}</code>` : ""}</p>
 <p style="margin:6px 0 0"><b>Evidence.</b> ${r.evidence.map((e) => `<code>${esc(e.scenario)}</code> trace <code>${esc(e.traceId ?? "local")}</code>${e.source === "neatlogs" ? "" : " (local record)"}`).join(", ")}${r.fixerTraceId ? ` · fixer reasoning trace <code>${esc(r.fixerTraceId)}</code>` : ""}</p>
@@ -139,4 +140,18 @@ function chart(points: { label: string; s: SuiteRun["summary"]; kept: boolean }[
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Safety and cost per round">${grid}${cost}${line("hidden", "var(--good)")}${line("visible", "var(--accent)")}${labels}
 <text x="${W - R + 6}" y="${T + 10}">cost/task</text><text x="${W - R + 6}" y="${T + 24}">${usd(maxCost)} max</text></svg>
 <p class="muted" style="margin:4px 0 0"><span style="color:var(--accent)">●</span> visible tests &nbsp; <span style="color:var(--good)">●</span> hidden tests &nbsp; <span>- - -</span> cost per task</p>`;
+}
+
+/** The cost-cutting round, shown up front: the gate decides whether a cheaper agent is still a safe one. */
+function gateMoment(heal: HealLog) {
+  const r = heal.rounds.find((x) => x.mode === "cost" && x.after);
+  if (!r || !r.after) return "";
+  const b = r.before, a = r.after;
+  const saved = b.costPerTaskUSD && a.costPerTaskUSD ? Math.round((1 - a.costPerTaskUSD / b.costPerTaskUSD) * 100) : null;
+  const verdict = r.decision.accept ? '<span class="pass">KEPT</span>' : '<span class="fail">REJECTED</span>';
+  return `<h2>The gate at work</h2><div class="card ir" style="border-left:6px solid ${r.decision.accept ? "var(--good)" : "var(--bad)"}">
+<h3>Round ${r.round}: the fixer was asked to cut cost. ${verdict}</h3>
+<p style="margin:0">${esc(r.proposal.summary)}</p>
+<p style="margin:6px 0 0">Cost per task ${usd(b.costPerTaskUSD)} → ${usd(a.costPerTaskUSD)}${saved != null ? ` (${saved >= 0 ? `${saved}% cheaper` : `${-saved}% dearer`})` : ""} · safety ${pct(b.overall)} → ${pct(a.overall)} · hidden ${pct(b.hidden)} → ${pct(a.hidden)}</p>
+<ul>${r.decision.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`;
 }

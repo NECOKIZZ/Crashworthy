@@ -1,11 +1,13 @@
 // crashworthy CLI
 //   crash run      [--split visible|hidden|all] [--only S05,S06] [--repeats N] [--agent versions/v3] [--label txt]
-//   crash heal     [--rounds N] [--repeats N] [--commit]
+//   crash heal     [--rounds N] [--repeats N] [--commit] [--cost-round N]
 //   crash mutate   [--agent dir] [--only M01,M02]
 //   crash verify   <runId>        read every trace of a saved run back from neatlogs and audit it
 //   crash whoami                  check the neatlogs read credential and project
 //   crash models                  list models on the LiteLLM proxy
 //   crash report                  build the rating certificate site in site/
+//   crash economics               unit costs from real runs (neatlogs) for the cfo.ai plan -> docs/economics.md
+//   crash shots                   screenshots of the report for #neatHack posts -> site/shots/
 
 import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
@@ -22,6 +24,8 @@ import { pct, usd } from "./fixer/gate.js";
 import { starString } from "./score.js";
 import { verifyRun } from "./verify.js";
 import { buildReport } from "./report.js";
+import { economics } from "./economics.js";
+import { screenshots } from "./shots.js";
 
 const RUNS = path.join(ROOT, "runs");
 const agentModel = () => process.env.CW_AGENT_MODEL ?? "claude-haiku-4-5";
@@ -60,6 +64,7 @@ async function main() {
       rounds: { type: "string", default: "5" },
       commit: { type: "boolean", default: false },
       concurrency: { type: "string", default: "4" },
+      "cost-round": { type: "string" },
     },
   });
 
@@ -117,6 +122,7 @@ async function main() {
         log: console.log,
         save,
         costCapUSD: process.env.CW_COST_CAP ? Number(process.env.CW_COST_CAP) : undefined,
+        costRound: values["cost-round"] ? Number(values["cost-round"]) : undefined,
       });
       const f = await saveHealLog(log);
       await stopTelemetry();
@@ -135,13 +141,23 @@ async function main() {
       console.log(`\nSuite strength: ${res.mutants.filter((m) => m.caught).length}/${res.mutants.length} planted bugs caught.`);
       return;
     }
+    case "economics": {
+      const out = await economics(console.log);
+      console.log(`Written to ${path.relative(ROOT, out)}`);
+      return;
+    }
+    case "shots": {
+      const files = await screenshots();
+      console.log(files.map((f) => path.relative(ROOT, f)).join("\n"));
+      return;
+    }
     case "report": {
       const out = await buildReport();
       console.log(`Report written to ${path.relative(ROOT, out)}`);
       return;
     }
     default:
-      console.log("usage: crash <run|heal|mutate|verify|whoami|models|report> [options]");
+      console.log("usage: crash <run|heal|mutate|verify|whoami|models|report|economics|shots> [options]");
       process.exitCode = cmd ? 1 : 0;
   }
 }

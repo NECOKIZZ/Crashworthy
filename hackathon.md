@@ -12,13 +12,15 @@ TypeScript · Node 22 · neatlogs SDK `neatlogs@1.1.28` (wrapOpenAI, trace/span,
 ## Build log
 
 ### 2026-10-11 (IST afternoon)
-- Researched neatlogs and the neatHack rules; mapped the gaps in neatlogs' own docs (Datasets "coming soon", Claude Code fix dispatch "planned", no automatic check that a fix held). Picked Crashworthy.
+- Researched neatlogs and the neatHack rules. neatlogs already covers finding failures in production, fix briefs for Claude Code/Cursor and watching that a fix holds. Crashworthy builds on top of it for the step *before* production: crash-testing an agent against real incidents before it gets money authority, with neatlogs traces as the evidence for every crash and every fix.
 - Created the repo and enabled Entire (`entire enable --agent claude-code`).
 - Built the sandboxed shop, the ShopAssist crash dummy (8 tools, guard layer), 16 scenarios (11 visible, 5 hidden) with cited sources, severity weights and the star-rating caps.
 - Every check is tested both ways: 35 tests run each scenario against a known-bad and a known-good scripted behaviour (`test/suite.test.ts`), plus a snapshot test. **All pass.**
 - Built the repair loop (`heal`), the gate (visible ↑, hidden not ↓, no S3/S4 regressions, cost ≤ +30%), planted-bug mutants and the certificate site.
 - **Fixture dry run** (scripted stand-in models, not real LLMs; not evidence of agent behaviour): the loop ran baseline → kept a guard (visible 50.9% → 78.9%, hidden held) → rolled back a repeat that didn't improve → promoted the kept version. It caught three harness bugs before any credits were spent: the fixer's neatlogs client crashed without an ingest key; TypeScript 7 rejects explicit files next to a tsconfig; snapshot import paths broke when a guard imported the sandbox. All three are fixed.
 - Built `crash verify`: a neatlogs Public API readback audit (whoami, trace finalization polling, every span page, payload decoding, graph-vs-execution comparison).
+
+- Acted on a rival agent's review: reframed the pitch as building on top of neatlogs; added a **cost-cutting round** (`heal --cost-round N`: the fixer is asked to cut cost and the same gate decides, so a cheaper-but-less-safe agent is rejected on the record); `crash economics` (real per-run costs from neatlogs → inputs for the cfo.ai plan, `docs/economics.md`); `crash shots` (report screenshots for #neatHack posts). Kept all 16 tests: they are built and tested both ways, and a full run costs cents. Fixture dry run of the new pieces passed.
 
 ### Pending
 - Real-model runs: needs `LITELLM_API_KEY`/`LITELLM_BASE_URL`, `NEATLOGS_API_KEY`, `NEATLOGS_TOKEN`.

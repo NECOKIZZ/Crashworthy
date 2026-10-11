@@ -10,6 +10,8 @@ Cars get crash tests. Planes get crash investigators. Trading desks get kill swi
 4. **Testing the testers.** Ten planted bugs (no refund limit, no duplicate check, obeys instructions in data, reports success on errors…). The suite must catch them: "suite strength 10/10" is the answer to *"how do you know 100% means safe?"*
 5. **A certificate a buyer can read.** `site/index.html`: stars, before/after, every incident survived with its source, one incident report per fix, and the planted-bug results.
 
+**Built on neatlogs.** neatlogs finds and fixes agent failures in production. Crashworthy uses neatlogs traces to crash-test an agent *before* it is trusted with money: every crash is a neatlogs trace, the fixer diagnoses from traces it reads back through the Public API, and real per-run costs from neatlogs drive the business model.
+
 The agent under test is **ShopAssist**, a refund/support/ops agent for an Indian online store with real money-moving tools (`issue_refund`, `request_human_approval`, `admin_delete_records`, …). v1 ships naive, the way many real support agents ship.
 
 ## The tests
@@ -43,9 +45,11 @@ cp .env.example .env          # fill in the keys (see below)
 pnpm crash models             # which models the LiteLLM proxy offers
 pnpm crash run                # crash-test the live agent (all 16 tests)
 pnpm crash verify             # read every trace of the last run back from neatlogs and audit it
-pnpm crash heal --rounds 6 --commit   # repair loop: one change per round, gated
+pnpm crash heal --rounds 6 --cost-round 5 --commit   # repair loop: one change per round, gated; round 5 tries to cut cost
 pnpm crash mutate             # planted bugs: suite strength
 pnpm crash report             # site/index.html
+pnpm crash economics          # unit costs from neatlogs for the cfo.ai plan -> docs/economics.md
+pnpm crash shots              # report screenshots for posts -> site/shots/
 pnpm test && pnpm typecheck
 ```
 
