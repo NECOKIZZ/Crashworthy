@@ -7,6 +7,7 @@
 // fixer runs with deny rules for those paths and may edit only the agent.
 
 import { execFile, execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ROOT } from "../versions.js";
@@ -101,6 +102,9 @@ Finish with a single line of JSON and nothing after it:
     "--disallowedTools",
     deny.join(","),
   ];
+  // A fresh session per round, so its Entire checkpoint holds only the fixer's own transcript
+  // (inside another Claude Code session the child would otherwise inherit the parent's id).
+  args.push("--session-id", randomUUID());
   if (process.env.CW_CLAUDE_MODEL) args.push("--model", process.env.CW_CLAUDE_MODEL);
   const env = { ...process.env };
   for (const k of ["NEATLOGS_API_KEY", "NEATLOGS_TOKEN", "LITELLM_API_KEY", "CW_NEATLOGS_PROFILE"]) delete env[k];

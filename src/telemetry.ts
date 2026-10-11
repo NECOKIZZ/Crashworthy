@@ -2,7 +2,7 @@
 // without it spans are still created but nothing is sent, and we say so.
 
 import { execSync } from "node:child_process";
-import { init, flushAll, shutdown, Client } from "neatlogs";
+import { init, flushAll, shutdown, Client, getDeliveryDiagnostics } from "neatlogs";
 
 let started = false;
 
@@ -34,6 +34,10 @@ export async function stopTelemetry() {
   try {
     await flushAll(15_000);
     await shutdown("crashworthy exit", 15_000);
+    // Spans the SDK dropped or failed to export never reach neatlogs; say so, so `crash verify` gaps are explained.
+    const d = getDeliveryDiagnostics();
+    const lost = { spanQueueDrops: d.spanQueueDrops, spanExportFailures: d.spanExportFailures, frameworkSpanDrops: d.frameworkSpanDrops, maskedSpanDrops: d.maskedSpanDrops, spanOverflowFailures: d.spanOverflowFailures };
+    if (Object.values(lost).some((n) => n > 0)) console.warn(`⚠ neatlogs delivery: ${JSON.stringify(lost)}${d.lastUploadFailureReason ? ` (last failure: ${d.lastUploadFailureReason})` : ""}`);
   } catch (e) {
     console.warn(`neatlogs flush failed (app results unaffected): ${(e as Error).message}`);
   }
