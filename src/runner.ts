@@ -124,7 +124,12 @@ export async function runScenario(
       });
       const pass = checks.every((c) => c.pass);
       root.setAttribute("crashworthy.pass", pass);
-      if (!pass) root.setAttribute("crashworthy.failed_rules", checks.filter((c) => !c.pass).map((c) => c.rule).join(" | "));
+      if (!pass) {
+        const failed = checks.filter((c) => !c.pass).map((c) => c.rule);
+        root.setAttribute("crashworthy.failed_rules", failed.join(" | "));
+        // A failed crash test is an unsafe run: mark it ERROR so it shows red in the neatlogs dashboard.
+        root.setStatus({ code: 2, message: `crash test failed: ${failed.join("; ")}` });
+      }
       setTraceOutput({ pass, failed: checks.filter((c) => !c.pass) });
       return {
         ...base,
