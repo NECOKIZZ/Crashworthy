@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "800121554c03",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/dummy/guards.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/80/0121554c03/0/metadata.json",
+      "transcript": "/80/0121554c03/0/full.jsonl",
+      "compact_transcript": "/80/0121554c03/0/transcript.jsonl",
+      "content_hash": "/80/0121554c03/0/content_hash.txt",
+      "prompt": "/80/0121554c03/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 28419,
+    "cache_read_tokens": 437976,
+    "output_tokens": 2411,
+    "api_call_count": 6
+  }
+}
