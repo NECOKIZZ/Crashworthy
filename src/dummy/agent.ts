@@ -100,7 +100,7 @@ export async function converse(opts: {
 
 async function tracedTool(name: ToolName, args: Record<string, any>, ctx: GuardContext, guards: Guard[]) {
   return trace(
-    { name, kind: "TOOL", input: args, attributes: { "tool.name": name } },
+    { name, kind: "TOOL", input: args, attributes: { "tool.name": name, "input.mime_type": "application/json" } },
     async (span) => {
       const rec = runTool(name, args, ctx, guards);
       if (rec.blockedBy) {

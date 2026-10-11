@@ -18,6 +18,9 @@ importers:
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
+      neatlogs-cli:
+        specifier: 0.2.1
+        version: 0.2.1
       playwright-core:
         specifier: 1.56.1
         version: 1.56.1
@@ -208,6 +211,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@github/keytar@7.10.6':
+    resolution: {integrity: sha512-mRW6cUsSG+nj4jp5gp8e91zPySaT73r+2JM6VyMZfrEgksjPmjSMr+tPGNOK3HUHV+GUU9B1LAiiYy/wmAnIxA==}
 
   '@jridgewell/resolve-uri@3.1.2':
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
@@ -655,6 +661,10 @@ packages:
     resolution: {integrity: sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==}
     engines: {node: '>=18'}
 
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
+
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
@@ -776,6 +786,11 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
+  neatlogs-cli@0.2.1:
+    resolution: {integrity: sha512-r5kkeTinRhU7tyj8tIQj0sKHwpFrUvq0cgPWxS8Lfq0pq4/jxkrVx6ClyXIOiZWWfeGu+Gop5wLDxPBZcQPxSg==}
+    engines: {node: '>=22 <23 || >=24 <25'}
+    hasBin: true
+
   neatlogs@1.1.28:
     resolution: {integrity: sha512-KeOEzjufhhTaxF7pckw08JOaILQvjj8HpS+Xb+3owMzQfjEtjYG01Oo2WtOGurifuTNMMabjw3WSRDi8a0thmg==}
     engines: {node: '>=18.0.0'}
@@ -794,6 +809,10 @@ packages:
         optional: true
       ai:
         optional: true
+
+  node-addon-api@8.9.2:
+    resolution: {integrity: sha512-VijLXbi3UACN69I0JVXJsX4tjACjNoQDgv2gTF6sx2wWEi8tkSg2eX8p5gSIFi8z2+DL3oHmY6OyKce38SDolg==}
+    engines: {node: ^18 || ^20 || >= 21}
 
   obug@2.2.1:
     resolution: {integrity: sha512-XrsrhT5sybtKI6wakr2SPOlGZWWYbUXZ7a0jT8/QOeAPau+1X/bSegNe5YR75oJmEZQbKningirmGOEJCIk61Q==}
@@ -1096,6 +1115,10 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@github/keytar@7.10.6':
+    dependencies:
+      node-addon-api: 8.9.2
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
@@ -1437,6 +1460,8 @@ snapshots:
 
   chai@6.3.0: {}
 
+  commander@14.0.3: {}
+
   detect-libc@2.1.2: {}
 
   es-module-lexer@2.3.2: {}
@@ -1546,6 +1571,12 @@ snapshots:
 
   nanoid@3.3.20: {}
 
+  neatlogs-cli@0.2.1:
+    dependencies:
+      '@github/keytar': 7.10.6
+      commander: 14.0.3
+      zod: 4.6.5
+
   neatlogs@1.1.28(ai@7.0.93(zod@4.6.5))(zod@4.6.5):
     dependencies:
       '@opentelemetry/api': 1.9.1
@@ -1566,6 +1597,8 @@ snapshots:
       ai: 7.0.93(zod@4.6.5)
     transitivePeerDependencies:
       - zod
+
+  node-addon-api@8.9.2: {}
 
   obug@2.2.1: {}
 
@@ -1722,5 +1755,4 @@ snapshots:
 
   why-is-node-running@3.2.1: {}
 
-  zod@4.6.5:
-    optional: true
+  zod@4.6.5: {}

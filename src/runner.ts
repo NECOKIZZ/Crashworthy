@@ -90,6 +90,7 @@ export async function runScenario(
         "crashworthy.agent_version": agent.version,
         "crashworthy.repeat": meta.repeat,
         "crashworthy.model": model,
+        "input.mime_type": "application/json",
       },
     },
     async (root) => {

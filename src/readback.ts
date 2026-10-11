@@ -1,9 +1,19 @@
 // Reads persisted traces back from the neatlogs Public API. This is how the
 // fixer gets its evidence, and how we prove every run actually landed.
 //
-// Credentials: NEATLOGS_TOKEN (expiring, project-bound service-account token)
-// read inside this process only; never the SDK ingest key. Host defaults to
-// the US dashboard origin; set NEATLOGS_HOST for EU.
+// Two credential routes, never the SDK ingest key:
+//  - NEATLOGS_TOKEN: an expiring, project-bound service-account token, read
+//    inside this process and sent as a Bearer header.
+//  - otherwise a neatlogs-cli profile signed in with `auth login --device`
+//    (CW_NEATLOGS_PROFILE), called through `neatlogs api <operationId>` in a
+//    child process whose environment has the credential variables removed.
+// Host defaults to the US dashboard origin; set NEATLOGS_HOST for EU.
+
+import { execFile } from "node:child_process";
+import { createRequire } from "node:module";
+import path from "node:path";
+
+const CLI_BIN = path.join(path.dirname(createRequire(import.meta.url).resolve("neatlogs-cli/package.json")), "dist/bin.js");
 
 export interface TraceSummary {
   traceId: string;
@@ -68,12 +78,19 @@ export class NeatlogsReader {
   }
 
   static available() {
-    return !!process.env.NEATLOGS_TOKEN;
+    return !!process.env.NEATLOGS_TOKEN || !!process.env.CW_NEATLOGS_PROFILE;
+  }
+
+  get route() {
+    return process.env.NEATLOGS_TOKEN ? "service-account token" : `neatlogs-cli profile ${process.env.CW_NEATLOGS_PROFILE}`;
   }
 
   private async get<T>(path: string, query: Record<string, string | number | undefined> = {}, attempt = 0): Promise<T> {
     const token = process.env.NEATLOGS_TOKEN;
-    if (!token) throw new ReadbackError("NEATLOGS_TOKEN is not set (a project-bound neatlogs service-account token with observability:read).");
+    if (!token) {
+      if (process.env.CW_NEATLOGS_PROFILE) return this.viaCli<T>(path, query, attempt);
+      throw new ReadbackError("No read credential: set NEATLOGS_TOKEN (service-account token) or CW_NEATLOGS_PROFILE (a neatlogs-cli profile signed in with auth login --device).");
+    }
     const url = new URL(this.host + path);
     for (const [k, v] of Object.entries(query)) if (v !== undefined) url.searchParams.set(k, String(v));
     const headers: Record<string, string> = { Authorization: `Bearer ${token}`, Accept: "application/json" };
@@ -93,6 +110,41 @@ export class NeatlogsReader {
       throw new ReadbackError(`GET ${path} -> ${res.status} ${detail}`, res.status);
     }
     return ((await res.json()) as { data: T }).data;
+  }
+
+  /** Same request through the CLI's release-embedded operation runner. */
+  private async viaCli<T>(path: string, query: Record<string, string | number | undefined>, attempt: number): Promise<T> {
+    const { operationId, params } = toOperation(path);
+    const args = ["--host", this.host, "--profile", process.env.CW_NEATLOGS_PROFILE!, "--credential-source", "profile", "--json"];
+    if (this.projectId && operationId !== "get_api_v1_public_projects") args.push("--project", this.projectId);
+    args.push("api", operationId);
+    for (const [k, v] of Object.entries(params)) args.push("--param", `${k}=${v}`);
+    for (const [k, v] of Object.entries(query)) if (v !== undefined) args.push("--query", `${k}=${v}`);
+    const env = { ...process.env };
+    delete env.NEATLOGS_API_KEY;
+    delete env.NEATLOGS_TOKEN;
+    delete env.NEATLOGS_PROJECT_ID;
+    // The SDK also ships a `neatlogs` binary (Doctor), so resolve the CLI explicitly.
+    const bin = process.env.CW_NEATLOGS_CLI ?? CLI_BIN;
+    const out = await new Promise<{ stdout: string; stderr: string; failed: boolean }>((resolve) =>
+      execFile(process.execPath, [bin, ...args], { env, maxBuffer: 20 * 1024 * 1024 }, (err, stdout, stderr) => resolve({ stdout, stderr, failed: !!err })),
+    );
+    // Success JSON is on stdout; problem JSON is on stderr (after a credential-source warning line).
+    let body: { data?: T; code?: string; status?: number; detail?: string; title?: string } | undefined;
+    for (const line of [out.stdout, ...out.stderr.split("\n").reverse()]) {
+      try {
+        body = JSON.parse(line);
+        break;
+      } catch {}
+    }
+    if (!body) throw new ReadbackError(`neatlogs ${operationId} returned no JSON (${out.stderr.trim().slice(0, 200)})`);
+    if (!out.failed && body.data !== undefined) return body.data;
+    const status = body.status ?? (body.code === "NOT_FOUND" ? 404 : body.code === "RATE_LIMITED" ? 429 : undefined);
+    if ((status === 429 || status === 503 || status === 409 || body.code === "NOT_READY") && attempt < 6) {
+      await sleep(1000 * 2 ** attempt);
+      return this.viaCli(path, query, attempt + 1);
+    }
+    throw new ReadbackError(`neatlogs ${operationId} -> ${[body.code, body.title, body.detail].filter(Boolean).join(": ")}`, status);
   }
 
   async whoami() {
@@ -153,7 +205,7 @@ export class NeatlogsReader {
   }
 
   /** Wait (bounded) until the trace exists and is finalized. */
-  async waitForTrace(traceId: string, timeoutMs = 120_000): Promise<TraceSummary> {
+  async waitForTrace(traceId: string, timeoutMs = 180_000): Promise<TraceSummary> {
     const deadline = Date.now() + timeoutMs;
     let last: unknown;
     for (let i = 0; Date.now() < deadline; i++) {
@@ -204,3 +256,19 @@ function decode(f?: PayloadField) {
 }
 
 export const traceUrl = (host: string, traceId: string) => `${host.replace(/\/$/, "")}/traces/${traceId}`;
+
+/** Map a Public API path to its operationId and path parameters. */
+function toOperation(path: string): { operationId: string; params: Record<string, string> } {
+  const routes: [RegExp, string, string[]][] = [
+    [/^\/api\/v1\/public\/whoami$/, "get_api_v1_public_whoami", []],
+    [/^\/api\/v1\/public\/traces$/, "get_api_v1_public_traces", []],
+    [/^\/api\/v1\/public\/traces\/([^/]+)$/, "get_api_v1_public_traces_traceId", ["traceId"]],
+    [/^\/api\/v1\/public\/traces\/([^/]+)\/spans$/, "get_api_v1_public_traces_traceId_spans", ["traceId"]],
+    [/^\/api\/v1\/public\/traces\/([^/]+)\/spans\/([^/]+)\/payload$/, "get_api_v1_public_traces_traceId_spans_spanId_payload", ["traceId", "spanId"]],
+  ];
+  for (const [re, operationId, names] of routes) {
+    const m = path.match(re);
+    if (m) return { operationId, params: Object.fromEntries(names.map((n, i) => [n, decodeURIComponent(m[i + 1])])) };
+  }
+  throw new ReadbackError(`no CLI operation mapped for ${path}`);
+}

@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "neatlogs-cli": "0.2.1",
     "playwright-core": "1.56.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

@@ -62,7 +62,20 @@ pnpm test && pnpm typecheck
 | The agent and fixer (export) | `NEATLOGS_API_KEY` | neatlogs SDK ingest key |
 | Readback (`verify`, the fixer's evidence) | `NEATLOGS_TOKEN` | expiring, project-bound service-account token with `observability:read`; sent as `Authorization: Bearer` with `x-project-id` |
 
-The ingest key does not authorize Public API reads. Readback code reads only `NEATLOGS_TOKEN`; if you use the `neatlogs-cli` instead, run it without the ingest key in its environment (`env -u NEATLOGS_API_KEY neatlogs-cli …`).
+The ingest key does not authorize Public API reads (it returns 401 there).
+
+**No service-account token?** Readback can also go through a `neatlogs-cli` profile signed in once in the browser. In containers without a keychain, add `--allow-file-credentials`:
+
+```bash
+env -u NEATLOGS_API_KEY -u NEATLOGS_TOKEN -u NEATLOGS_PROJECT_ID node node_modules/neatlogs-cli/dist/bin.js \
+  --host https://app.neatlogs.com --profile setup-https---app-neatlogs-com auth login --device --allow-file-credentials
+export CW_NEATLOGS_PROFILE=setup-https---app-neatlogs-com NEATLOGS_PROJECT_ID=<project-uuid>
+pnpm crash whoami      # actor, project, scopes, and a first page of traces
+```
+
+Crashworthy then calls `neatlogs api <operationId>` in a child process with `NEATLOGS_API_KEY`, `NEATLOGS_TOKEN` and `NEATLOGS_PROJECT_ID` removed from its environment. It resolves `node_modules/neatlogs-cli/dist/bin.js` explicitly, because the SDK package also installs a `neatlogs` binary (SDK Doctor) that shadows the CLI on `npx`/`pnpm` paths.
+
+**SDK Doctor:** `node node_modules/neatlogs/dist/cli.mjs doctor --local --json` (no network) and `… doctor --probe --json` (exports a synthetic trace with the project key and reads it back). Doctor is supporting evidence only; the acceptance evidence is `crash verify` on a real run.
 
 **Trace shape** (one trace per scenario repetition, workflow `crash-dummy`):
 
@@ -78,7 +91,7 @@ WORKFLOW  crash-test S05-knight-runaway     session = <runId>:<scenario>:<repeat
 
 The fixer's own reasoning is a separate workflow, `crashworthy-fixer` (one AGENT trace per round, with its LLM call).
 
-**Fresh-execution correlation:** every run has a new `runId`; each scenario run's `sessionId` is `<runId>:<scenario>:<repeat>`, and the SDK trace id is saved in `runs/<runId>.json`. `pnpm crash verify <runId>` waits (bounded) for each trace to be finalized, then lists every span page and checks the stored graph against the local execution: one WORKFLOW root, AGENT spans = turns, LLM spans = model calls, TOOL spans = tool calls, GUARDRAIL spans = blocks, stored LLM tokens = provider-reported tokens, and the stored verdict payload = the local verdict. Results land in `runs/verify/<runId>.json`.
+**Fresh-execution correlation:** every run has a new `runId`; each scenario run's `sessionId` is `<runId>:<scenario>:<repeat>`, and the SDK trace id is saved in `runs/<runId>.json`. Ingestion can lag about a minute. `pnpm crash verify <runId>` waits (bounded, 3 minutes) for each trace to be finalized, then lists every span page and checks the stored graph against the local execution: one WORKFLOW root, AGENT spans = turns, LLM spans = model calls, TOOL spans = tool calls, GUARDRAIL spans = blocks, stored LLM tokens = provider-reported tokens, and the stored verdict payload = the local verdict. Results land in `runs/verify/<runId>.json`.
 
 ## Built with
 

@@ -22,8 +22,11 @@ TypeScript · Node 22 · neatlogs SDK `neatlogs@1.1.28` (wrapOpenAI, trace/span,
 
 - Acted on a rival agent's review: reframed the pitch as building on top of neatlogs; added a **cost-cutting round** (`heal --cost-round N`: the fixer is asked to cut cost and the same gate decides, so a cheaper-but-less-safe agent is rejected on the record); `crash economics` (real per-run costs from neatlogs → inputs for the cfo.ai plan, `docs/economics.md`); `crash shots` (report screenshots for #neatHack posts). Kept all 16 tests: they are built and tested both ways, and a full run costs cents. Fixture dry run of the new pieces passed.
 
+- **neatlogs connected** (project `f6d0cf85-94dd-42fb-8d22-f363d1cd4f2d`). SDK Doctor `--local` and `--probe` both pass (probe trace `727f7043053bbe33b0e8598feda56ab0`: exported, finalized, hierarchy/IO/tokens intact). The project key returns 401 on the Public API, as documented, so readback uses a `neatlogs-cli` device-flow login with file credentials (the container has no keychain).
+- **Fixture traces** (scripted stand-in model, no LLM): Crashworthy's real trace shape persisted. In S05 (`0c4f143b…`, bad run) the workflow root, the agent turn, two `issue_refund` TOOL spans with status ERROR (the 504 ghost timeout), a reply and the EVALUATOR verdict ("2 refunds issued for one order") were all read back with payloads intact. `crash verify` matched everything except LLM spans, which are expected to be absent with a scripted model. Found and fixed during readback: the SDK's own `neatlogs` binary shadowed the CLI under npx; CLI errors are on stderr; ingestion took about a minute (polling window raised to 3 minutes).
+
 ### Pending
-- Real-model runs: needs `LITELLM_API_KEY`/`LITELLM_BASE_URL`, `NEATLOGS_API_KEY`, `NEATLOGS_TOKEN`.
+- Real-model runs: needs `LITELLM_API_KEY`/`LITELLM_BASE_URL` (neatlogs is connected).
 - Baseline → heal → mutate → verify on real models; before/after traces; cfo.ai business plan; demo video; #neatHack posts.
 
 ## Demo
