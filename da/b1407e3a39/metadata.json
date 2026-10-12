@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "dab1407e3a39",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "video/build.sh",
+    "video/crashworthy-demo.mp4",
+    "video/music.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/da/b1407e3a39/0/metadata.json",
+      "transcript": "/da/b1407e3a39/0/full.jsonl",
+      "compact_transcript": "/da/b1407e3a39/0/transcript.jsonl",
+      "content_hash": "/da/b1407e3a39/0/content_hash.txt",
+      "prompt": "/da/b1407e3a39/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 8462,
+    "cache_read_tokens": 1334603,
+    "output_tokens": 4087,
+    "api_call_count": 4
+  }
+}
