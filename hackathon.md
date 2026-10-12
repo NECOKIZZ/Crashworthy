@@ -102,4 +102,4 @@ Every round's evidence came from failing traces read back from neatlogs, plus `e
 - The gate's accept/reject signal depends on the hidden score, so a little hidden-set information reaches the fixer through which changes survive. Test identities, traces and content never do.
 
 ## Submission status
-Not submitted.
+Submitted on 2026-10-12 (IST) via the quote-post of the official neatlogs launch post and the neatlogs.com/submission form.
