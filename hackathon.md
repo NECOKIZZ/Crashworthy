@@ -88,6 +88,8 @@ Every round's evidence came from failing traces read back from neatlogs, plus `e
 
 **#neatHack post 2** (before/after): https://x.com/0xnecokizz/status/2109451489693295041
 
+**#neatHack post 3** (final progress update): https://x.com/0xnecokizz/status/2109507552283181559
+
 **Economics (`docs/economics.md`).** neatlogs stores tokens for nova-lite but no price ($0), so agent cost = provider tokens × the published nova-lite price, cross-checked against neatlogs tokens. Fixer cost = what each Claude Code session reported. One crash test $0.0004 · full re-test (48 runs) $0.019 · planted-bug check $0.038 · **one certification $0.058** · one repair round $0.153 · 9-round repair $1.38. For reference, the same agent on claude-haiku costs $0.0074/task (a re-test ≈ $0.36).
 
 ## Demo
