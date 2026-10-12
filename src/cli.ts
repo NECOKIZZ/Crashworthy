@@ -146,7 +146,7 @@ async function main() {
       return;
     }
     case "economics": {
-      const out = await economics(console.log);
+      const out = await economics(console.log, { after: values.after });
       console.log(`Written to ${path.relative(ROOT, out)}`);
       return;
     }

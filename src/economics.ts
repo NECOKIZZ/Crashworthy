@@ -17,42 +17,44 @@ interface RunCost {
   runId: string;
   label: string;
   traces: number;
-  neatlogsUSD: number | null;
+  /** Provider-reported tokens × the published price table. */
   localUSD: number | null;
   tokens: number;
+  /** Cross-check against neatlogs: traces found, their stored tokens, their stored cost. */
+  neatlogs: { found: number; tokens: number; tokensForFound: number; usd: number } | null;
 }
 
 async function runCost(run: SuiteRun, reader: NeatlogsReader | null): Promise<RunCost> {
   const all = run.scenarios.flatMap((s) => s.runs);
-  let neatlogs: number | null = reader ? 0 : null;
+  let neatlogs: RunCost["neatlogs"] = null;
   if (reader) {
+    neatlogs = { found: 0, tokens: 0, tokensForFound: 0, usd: 0 };
     for (const r of all) {
-      try {
-        if (!r.traceId) throw new Error("no trace id");
-        neatlogs! += (await reader.getTrace(r.traceId)).totalCostUsd;
-      } catch {
-        neatlogs = null;
-        break;
-      }
+      const t = r.traceId ? await reader.getTrace(r.traceId).catch(() => null) : null;
+      if (!t) continue;
+      neatlogs.found += 1;
+      neatlogs.tokens += t.totalTokens ?? 0;
+      neatlogs.tokensForFound += r.usage.input + r.usage.output;
+      neatlogs.usd += t.totalCostUsd ?? 0;
     }
   }
   const local = all.some((r) => r.costUSD == null) ? null : all.reduce((n, r) => n + (r.costUSD ?? 0), 0);
-  return { runId: run.runId, label: run.label, traces: all.length, neatlogsUSD: neatlogs, localUSD: local, tokens: all.reduce((n, r) => n + r.usage.input + r.usage.output, 0) };
+  return { runId: run.runId, label: run.label, traces: all.length, localUSD: local, tokens: all.reduce((n, r) => n + r.usage.input + r.usage.output, 0), neatlogs };
 }
 
-export async function economics(log: (s: string) => void) {
+export async function economics(log: (s: string) => void, opts: { after?: string } = {}) {
   const files = (await readdir(RUNS)).sort();
   const reader = NeatlogsReader.available() ? new NeatlogsReader() : null;
   const mutFile = files.filter((f) => f.startsWith("mutation_")).at(-1);
   const heal = await loadHealChain(RUNS);
   if (!heal) throw new Error("Run `pnpm crash heal` first.");
 
-  const final = await runCost(await read<SuiteRun>(`${heal.finalRunId}.json`), reader);
+  const final = await runCost(await read<SuiteRun>(`${opts.after ?? heal.finalRunId}.json`), reader);
   const rounds = [];
   for (const r of heal.rounds) {
     const run = r.afterRunId ? await runCost(await read<SuiteRun>(`${r.afterRunId}.json`), reader) : null;
-    let fixer: number | null = r.fixerUsage && !r.fixerUsage.unknown ? costUSD(heal.fixerModel, r.fixerUsage) : null;
-    if (reader && r.fixerTraceId) fixer = (await reader.getTrace(r.fixerTraceId).catch(() => null))?.totalCostUsd ?? fixer;
+    // Claude Code fixer: the cost the session itself reports. LLM fixer: tokens × price table.
+    const fixer: number | null = r.fixerCostUSD ?? (r.fixer !== "claude-code" && r.fixerUsage && !r.fixerUsage.unknown ? costUSD(heal.fixerModel, r.fixerUsage) : null);
     rounds.push({ round: r.round, mode: r.mode, kept: r.decision.accept, fixerUSD: fixer, rerun: run });
   }
   let mutation: { runs: RunCost[]; total: number | null } | null = null;
@@ -66,11 +68,22 @@ export async function economics(log: (s: string) => void) {
   const perTest = retest != null ? retest / final.traces : null;
   const healTotal = sum(rounds.map((r) => (r.rerun ? sum([best(r.rerun), r.fixerUSD]) : r.fixerUSD)));
   const certification = sum([retest, mutation?.total ?? null]);
-  const source = reader ? "neatlogs stored trace cost (totalCostUsd)" : "provider-reported tokens × price table (no NEATLOGS_TOKEN)";
+  const checked = [final, ...rounds.map((r) => r.rerun), ...(mutation?.runs ?? [])].filter((r): r is RunCost => !!r?.neatlogs);
+  const found = checked.reduce((n, r) => n + r.neatlogs!.found, 0);
+  const traces = checked.reduce((n, r) => n + r.traces, 0);
+  const stored = checked.reduce((n, r) => n + r.neatlogs!.tokens, 0);
+  const local = checked.reduce((n, r) => n + r.neatlogs!.tokensForFound, 0);
+  const nlUSD = checked.reduce((n, r) => n + r.neatlogs!.usd, 0);
+  const source = `agent: provider-reported tokens × the published price for \`${heal.agentModel}\`; fixer: the cost each Claude Code session reported`;
+  const crossCheck = checked.length
+    ? `neatlogs cross-check: ${found}/${traces} traces found; stored tokens ${stored.toLocaleString("en-US")} vs local ${local.toLocaleString("en-US")} for those traces (${local ? ((stored / local) * 100).toFixed(1) : "n/a"}%); stored cost $${nlUSD.toFixed(4)}${nlUSD === 0 ? " (neatlogs has no price for this model, so token counts are the check)" : ""}.`
+    : "neatlogs cross-check: not run (no read credential).";
 
   const md = `# Unit economics (from real runs)
 
-Source of costs: **${source}**. Agent model \`${heal.agentModel}\`, fixer model \`${heal.fixerModel}\`. Generated ${new Date().toISOString()} by \`pnpm crash economics\`.
+Source of costs: **${source}**.
+
+${crossCheck} Agent model \`${heal.agentModel}\`, fixer model \`${heal.fixerModel}\`. Generated ${new Date().toISOString()} by \`pnpm crash economics\`.
 
 | What | Cost (USD) | Basis |
 |---|---|---|
@@ -99,7 +112,7 @@ ${rounds.map((r) => `| ${r.round} | ${r.mode} | ${r.kept ? "yes" : "no"} | ${f(r
   return out;
 }
 
-const best = (r: RunCost) => r.neatlogsUSD ?? r.localUSD;
+const best = (r: RunCost) => r.localUSD;
 function sum(xs: (number | null)[]) {
   return xs.some((x) => x == null) ? null : xs.reduce<number>((a, b) => a + (b ?? 0), 0);
 }
