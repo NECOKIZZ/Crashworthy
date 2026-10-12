@@ -1,0 +1,17 @@
+<task-notification>
+<task-id>b751hs5cf</task-id>
+<tool-use-id>toolu_01PYcWtc74MjAfvyV7QsUsjd</tool-use-id>
+<output-file>/tmp/claude-0/-home-user-Crashworthy/3dc7cf1a-3288-5796-b7a7-61af933f6e29/tasks/b751hs5cf.output</output-file>
+<status>completed</status>
+<summary>Background command "L=/tmp/claude-0/-home-user-Crashworthy/3dc7cf1a-3288-5796-b7a7-61af933f6e29/scratchpad/heal4.log; until grep -qE "Heal log|ELIFECYCLE" $L; do sleep 20; done; grep -v "^  \(pass\|FAIL\) S" $L | grep -v "^&gt;\|^$" | sed -n '/^Round 2/,$p'" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfq5maux5</task-id>
+<tool-use-id>toolu_0112rjyzPZD1nfY9orHi4Cq3</tool-use-id>
+<output-file>/tmp/claude-0/-home-user-Crashworthy/3dc7cf1a-3288-5796-b7a7-61af933f6e29/tasks/bfq5maux5.output</output-file>
+<status>completed</status>
+<summary>Background command "L=/tmp/claude-0/-home-user-Crashworthy/3dc7cf1a-3288-5796-b7a7-61af933f6e29/scratchpad/heal4.log; until grep -qE "Heal log|ELIFECYCLE" $L; do sleep 20; done; grep -v "^  \(pass\|FAIL\) S" $L | grep -v "^&gt;\|^$"" completed (exit code 0)</summary>
+</task-notification>
