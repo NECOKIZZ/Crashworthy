@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds the demo video: frames (capture.mjs) + narration + subtitles -> crashworthy-demo.mp4
+# Builds the demo video: frames (capture.mjs) + narration + subtitles + soft music (music.py, needs numpy/soundfile) -> crashworthy-demo.mp4
 # usage: video/build.sh <workdir> "<tts command: reads text on stdin, writes the wav path given as its last argument>" <entire-shots-dir> <out.mp4>
 # e.g. TTS="python kokoro_say.py kokoro-v1.0.onnx voices-v1.0.bin af_heart" (Kokoro, voice af_heart)
 set -euo pipefail
@@ -34,4 +34,9 @@ PY
 done
 ffmpeg -v error -y -f concat -safe 0 -i "$W/list.txt" -c copy "$W/joined.mp4"
 ffmpeg -v error -y -i "$W/joined.mp4" -vf "subtitles=$W/subs.srt:force_style='FontName=DejaVu Sans,FontSize=11,PrimaryColour=&H00FFFFFF,BackColour=&H99000000,BorderStyle=4,Outline=0,Shadow=0,MarginV=14'" -af loudnorm=I=-16:TP=-1.5:LRA=11 -c:v libx264 -preset medium -crf 20 -c:a aac -b:a 160k -ar 48000 "$OUT"
+# Soft original background pad (video/music.py), ducked under the narration.
+d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT")
+python3 video/music.py "$d" "$W/music.wav"
+mv "$OUT" "$W/voice-only.mp4"
+ffmpeg -v error -y -i "$W/voice-only.mp4" -i "$W/music.wav" -filter_complex "[1:a]volume=0.10[m];[0:a]asplit=2[v][sc];[m][sc]sidechaincompress=threshold=0.03:ratio=3:attack=80:release=900[md];[v][md]amix=inputs=2:normalize=0:duration=first,alimiter=limit=0.95[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 160k -ar 48000 "$OUT"
 ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT"
