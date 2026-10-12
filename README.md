@@ -123,4 +123,6 @@ The fixer's own reasoning is a separate workflow, `crashworthy-fixer` (one AGENT
 
 [neatlogs](https://neatlogs.com) (tracing, readback, evidence) · [Entire](https://entire.io) (checkpoints of the coding sessions that built this) · cfo.ai (business plan in `docs/business-plan.md`) · the neatHack LiteLLM proxy · TypeScript, Node 22.
 
+Demo video: https://youtu.be/AxK6eyVUeHU
+
 Built for **neatHack 2026** (#neatHack). Build log: [`hackathon.md`](hackathon.md).
