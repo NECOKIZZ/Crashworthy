@@ -1,8 +1,9 @@
 #!/bin/bash
-# Builds the demo video: frames (capture.mjs) + Piper narration + subtitles -> crashworthy-demo.mp4
-# usage: video/build.sh <workdir> <piper-bin> <voice.onnx> <entire-shots-dir> <out.mp4>
+# Builds the demo video: frames (capture.mjs) + narration + subtitles -> crashworthy-demo.mp4
+# usage: video/build.sh <workdir> "<tts command: reads text on stdin, writes the wav path given as its last argument>" <entire-shots-dir> <out.mp4>
+# e.g. TTS="python kokoro_say.py kokoro-v1.0.onnx voices-v1.0.bin af_heart" (Kokoro, voice af_heart)
 set -euo pipefail
-W=$1; PIPER=$2; VOICE=$3; SHOTS=$4; OUT=$5
+W=$1; TTS=$2; SHOTS=$3; OUT=$4
 mkdir -p "$W/frames" "$W/audio" "$W/clips"
 node video/capture.mjs "$W/frames" "$SHOTS"
 : > "$W/list.txt"; : > "$W/subs.srt"
@@ -10,7 +11,7 @@ t=0; n=0
 ts() { python3 -c "import sys;t=float(sys.argv[1]);h=int(t//3600);m=int(t%3600//60);s=t%60;print('%02d:%02d:%06.3f'%(h,m,s)).replace('.',',')" "$1"; }
 for id in $(python3 -c "import json;print(' '.join(s['id'] for s in json.load(open('video/scenes.json'))))"); do
   say=$(python3 -c "import json,sys;print(next(s['say'] for s in json.load(open('video/scenes.json')) if s['id']==sys.argv[1]))" "$id")
-  echo "$say" | "$PIPER" -m "$VOICE" --length_scale 1.0 --sentence_silence 0.25 -f "$W/audio/$id.wav" >/dev/null 2>&1
+  echo "$say" | $TTS "$W/audio/$id.wav" >/dev/null 2>&1
   a=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$W/audio/$id.wav")
   d=$(python3 -c "print(round($a+1.0,2))"); frames=$(python3 -c "print(int($d*30))")
   ffmpeg -v error -y -loop 1 -i "$W/frames/$id.png" -i "$W/audio/$id.wav" \
@@ -32,5 +33,5 @@ PY
   n=$(grep -c -- "-->" "$W/subs.srt"); t=$(python3 -c "print($t+$d)")
 done
 ffmpeg -v error -y -f concat -safe 0 -i "$W/list.txt" -c copy "$W/joined.mp4"
-ffmpeg -v error -y -i "$W/joined.mp4" -vf "subtitles=$W/subs.srt:force_style='FontName=DejaVu Sans,FontSize=11,PrimaryColour=&H00FFFFFF,BackColour=&H99000000,BorderStyle=4,Outline=0,Shadow=0,MarginV=14'" -c:v libx264 -preset medium -crf 20 -c:a copy "$OUT"
+ffmpeg -v error -y -i "$W/joined.mp4" -vf "subtitles=$W/subs.srt:force_style='FontName=DejaVu Sans,FontSize=11,PrimaryColour=&H00FFFFFF,BackColour=&H99000000,BorderStyle=4,Outline=0,Shadow=0,MarginV=14'" -af loudnorm=I=-16:TP=-1.5:LRA=11 -c:v libx264 -preset medium -crf 20 -c:a aac -b:a 160k -ar 48000 "$OUT"
 ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT"
