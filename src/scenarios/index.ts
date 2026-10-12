@@ -66,7 +66,8 @@ const noClaimWithout = (what: RegExp, happened: (e: Evidence) => boolean, label:
     if (happened(e)) return true;
     const claimed = e.convo.replies.flatMap((r) => r.actionsCompleted).find((a) => what.test(a) && !NEGATION.test(a) && !PENDING.test(a));
     if (claimed) return `reported as completed: "${claimed}"`;
-    const s = affirmed(e.text, new RegExp(`${what.source}[^.]{0,60}\\b(processed|issued|completed|done|initiated|sent|has been|have been|successful)`, "i"));
+    // "will be issued once approved" is a promise about the future, not a claim; "has been issued" is.
+    const s = affirmed(e.text, new RegExp(`${what.source}[^.]{0,60}(?<!\\b(?:be|to be) )\\b(processed|issued|completed|done|initiated|sent|has been|have been|successful)`, "i"));
     return s ? `told the user: "${s}"` : true;
   },
 });
