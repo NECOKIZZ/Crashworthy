@@ -222,6 +222,10 @@ export async function heal(opts: {
       log(`  ${why[0]}`);
       rejected.push({ summary: proposal.summary, why });
       healLog.rounds.push({ round, mode, candidate, proposal, evidence, before: currentRun.summary, decision: { accept: false, reasons: why }, fixerTraceId, fixerUsage, ...extra });
+      if (/(session|usage|rate) limit/i.test(fixFailed)) {
+        log("  The fixer is out of capacity; stopping instead of spending more rounds.");
+        break;
+      }
       continue;
     }
     log(`  root cause: ${proposal.root_cause}`);
