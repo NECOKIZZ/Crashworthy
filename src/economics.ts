@@ -6,9 +6,9 @@ import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { ROOT } from "./versions.js";
 import type { SuiteRun } from "./runner.js";
-import type { HealLog } from "./fixer/heal.js";
 import { NeatlogsReader } from "./readback.js";
 import { costUSD } from "./llm.js";
+import { loadHealChain } from "./healchain.js";
 
 const RUNS = path.join(ROOT, "runs");
 const read = async <T>(f: string): Promise<T> => JSON.parse(await readFile(path.join(RUNS, f), "utf8"));
@@ -43,10 +43,9 @@ async function runCost(run: SuiteRun, reader: NeatlogsReader | null): Promise<Ru
 export async function economics(log: (s: string) => void) {
   const files = (await readdir(RUNS)).sort();
   const reader = NeatlogsReader.available() ? new NeatlogsReader() : null;
-  const healFile = files.filter((f) => f.startsWith("heal_")).at(-1);
   const mutFile = files.filter((f) => f.startsWith("mutation_")).at(-1);
-  if (!healFile) throw new Error("Run `pnpm crash heal` first.");
-  const heal = await read<HealLog>(healFile);
+  const heal = await loadHealChain(RUNS);
+  if (!heal) throw new Error("Run `pnpm crash heal` first.");
 
   const final = await runCost(await read<SuiteRun>(`${heal.finalRunId}.json`), reader);
   const rounds = [];

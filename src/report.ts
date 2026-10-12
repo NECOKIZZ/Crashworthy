@@ -8,6 +8,7 @@ import { SCENARIOS } from "./scenarios/index.js";
 import { SEVERITY_LABEL } from "./scenarios/types.js";
 import type { SuiteRun } from "./runner.js";
 import type { HealLog } from "./fixer/heal.js";
+import { loadHealChain } from "./healchain.js";
 import { pct, usd } from "./fixer/gate.js";
 
 const RUNS = path.join(ROOT, "runs");
@@ -18,16 +19,16 @@ async function json<T>(f: string): Promise<T> {
   return JSON.parse(await readFile(path.join(RUNS, f), "utf8"));
 }
 
-export async function buildReport() {
+export async function buildReport(opts: { before?: string; after?: string } = {}) {
   const files = (await readdir(RUNS).catch(() => [] as string[])).sort();
-  const healFile = files.filter((f) => f.startsWith("heal_")).at(-1);
-  const heal = healFile ? await json<HealLog>(healFile) : null;
+  const heal = await loadHealChain(RUNS);
   const mutFile = files.filter((f) => f.startsWith("mutation_")).at(-1);
   const mut = mutFile ? await json<{ agent: string; strength: number; mutants: { id: string; bug: string; caught: boolean; caughtBy: string[] }[] }>(mutFile) : null;
   const runIds = files.filter((f) => f.startsWith("run_"));
   if (!heal && !runIds.length) throw new Error("No runs yet. Run `pnpm crash run` or `pnpm crash heal` first.");
-  const before = await json<SuiteRun>(`${heal ? heal.baselineRunId : runIds[0].replace(".json", "")}.json`);
-  const after = await json<SuiteRun>(`${heal ? heal.finalRunId : runIds.at(-1)!.replace(".json", "")}.json`);
+  // --before/--after: headline runs (e.g. worst-of-3 re-runs of v1 and the final version).
+  const before = await json<SuiteRun>(`${opts.before ?? (heal ? heal.baselineRunId : runIds[0].replace(".json", ""))}.json`);
+  const after = await json<SuiteRun>(`${opts.after ?? (heal ? heal.finalRunId : runIds.at(-1)!.replace(".json", ""))}.json`);
   const roundRuns = heal ? await Promise.all(heal.rounds.filter((r) => r.afterRunId).map((r) => json<SuiteRun>(`${r.afterRunId}.json`))) : [];
   const b = before.summary;
   const a = after.summary;

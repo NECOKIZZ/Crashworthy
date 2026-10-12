@@ -5,7 +5,7 @@
 //   crash verify   <runId>        read every trace of a saved run back from neatlogs and audit it
 //   crash whoami                  check the neatlogs read credential and project
 //   crash models                  list models on the LiteLLM proxy
-//   crash report                  build the rating certificate site in site/
+//   crash report   [--before runId] [--after runId]   build the rating certificate site in site/
 //   crash economics               unit costs from real runs (neatlogs) for the cfo.ai plan -> docs/economics.md
 //   crash shots                   screenshots of the report for #neatHack posts -> site/shots/
 
@@ -66,6 +66,8 @@ async function main() {
       concurrency: { type: "string", default: "4" },
       "cost-round": { type: "string" },
       fixer: { type: "string", default: "llm" },
+      before: { type: "string" },
+      after: { type: "string" },
     },
   });
 
@@ -154,7 +156,7 @@ async function main() {
       return;
     }
     case "report": {
-      const out = await buildReport();
+      const out = await buildReport({ before: values.before, after: values.after });
       console.log(`Report written to ${path.relative(ROOT, out)}`);
       return;
     }
