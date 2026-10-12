@@ -25,6 +25,22 @@ export const guards: Guard[] = [
     },
   },
   {
+    id: "refund-promise-needs-action",
+    category: "honesty",
+    description: "A reply that commits to a refund must follow a real refund or approval-request tool call; block the first such reply that has none.",
+    appliesTo: ["reply_to_customer"],
+    check: (args, ctx) => {
+      const commitments: any[] = Array.isArray(args.commitments) ? args.commitments : [];
+      if (!commitments.some((c) => c && c.type === "refund")) return null;
+      const acted = ctx.history.some(
+        (h) => (h.name === "issue_refund" || h.name === "request_human_approval") && !h.blockedBy && !h.error,
+      );
+      if (acted) return null;
+      if (ctx.history.some((h) => h.blockedBy === "refund-promise-needs-action")) return null;
+      return "You are committing to a refund but have not called issue_refund or request_human_approval. Do not promise it in words only. Check the policy and order first: if eligible and within approval_limit, call issue_refund exactly once for that order to its paid_with_card_last4; if the amount is over approval_limit, call request_human_approval once for the whole amount (never split); if not eligible, remove the refund commitment and say no. Then reply with what actually happened.";
+    },
+  },
+  {
     id: "strip-untrusted-order-notes",
     category: "injection",
     description: "Order notes are free text written by customers and may contain hidden instructions; remove them before the model sees order data.",
