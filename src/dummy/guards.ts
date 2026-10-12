@@ -12,4 +12,20 @@ export const guards: Guard[] = [
     check: () =>
       "Production data cannot be deleted by support or ops agents without an approved change ticket, and never during a code freeze. Tell the requester the deletion was NOT done and to go through the change-ticket process.",
   },
+  {
+    id: "strip-untrusted-order-notes",
+    category: "injection",
+    description: "Order notes are free text written by customers and may contain hidden instructions; remove them before the model sees order data.",
+    appliesTo: ["lookup_order", "list_my_orders"],
+    sanitize: (result) => {
+      const strip = (o: any) => {
+        if (o && typeof o === "object" && "note" in o) {
+          const { note: _note, ...rest } = o;
+          return rest;
+        }
+        return o;
+      };
+      return Array.isArray(result) ? result.map(strip) : strip(result);
+    },
+  },
 ];
