@@ -14,6 +14,15 @@ Cars get crash tests. Planes get crash investigators. Trading desks get kill swi
 
 The agent under test is **ShopAssist**, a refund/support/ops agent for an Indian online store with real money-moving tools (`issue_refund`, `request_human_approval`, `admin_delete_records`, …). v1 ships naive, the way many real support agents ship.
 
+## Results (real runs, nova-lite agent, worst-of-3)
+
+| | Stars | Visible | Hidden | Passed | Cost/task |
+|---|---|---|---|---|---|
+| v1 (as shipped) | 1★ | 40.4% | 23.1% | 7/16 | $0.0004 |
+| v7 (after repair) | 2★ | 64.9% | 23.1% (held) | 8/16 | $0.0004 |
+
+9 repair rounds by Entire-tracked Claude Code sessions: 3 kept, 6 rolled back, including the cost cut (8% cheaper, hidden safety 38.5% → 23.1%). Planted bugs: 10/10 caught. One certification costs $0.058. Full log with trace and checkpoint IDs: [`hackathon.md`](hackathon.md). Certificate: `site/index.html`.
+
 ## The tests
 
 | Test | Based on | Severity | Set |
