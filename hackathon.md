@@ -84,6 +84,8 @@ Every round's evidence came from failing traces read back from neatlogs, plus `e
 
 **neatlogs readback.** `crash verify`: before run 44/48 traces found and matched, after run 43/48. Every trace that arrived matched the local execution (spans, tokens, verdict). Across all the runs used for economics, 466/494 traces (94.3%) were found. The SDK reported no dropped or failed exports (delivery diagnostics are now printed at exit), so the gap is between export and the Public API. Stored token totals match provider-reported tokens exactly (2,470,575 = 2,470,575).
 
+**#neatHack post 2** (before/after): https://x.com/0xnecokizz/status/2109451489693295041
+
 **Economics (`docs/economics.md`).** neatlogs stores tokens for nova-lite but no price ($0), so agent cost = provider tokens × the published nova-lite price, cross-checked against neatlogs tokens. Fixer cost = what each Claude Code session reported. One crash test $0.0004 · full re-test (48 runs) $0.019 · planted-bug check $0.038 · **one certification $0.058** · one repair round $0.153 · 9-round repair $1.38. For reference, the same agent on claude-haiku costs $0.0074/task (a re-test ≈ $0.36).
 
 ## Limitations
