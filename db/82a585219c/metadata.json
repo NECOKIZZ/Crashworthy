@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "db82a585219c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "src/dummy/guards.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/db/82a585219c/0/metadata.json",
+      "transcript": "/db/82a585219c/0/full.jsonl",
+      "compact_transcript": "/db/82a585219c/0/transcript.jsonl",
+      "content_hash": "/db/82a585219c/0/content_hash.txt",
+      "prompt": "/db/82a585219c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 21846,
+    "cache_read_tokens": 146692,
+    "output_tokens": 1591,
+    "api_call_count": 4
+  }
+}
