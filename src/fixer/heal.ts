@@ -480,8 +480,9 @@ function commitRolledBack(rec: RoundRecord, dir: string, before: SuiteRun, after
       ].join("\n"),
     );
     const attempt = git("rev-parse", "--short", "HEAD");
-    git("revert", "--no-edit", "HEAD");
-    git("commit", "--amend", "-q", "-m", `revert(${rec.candidate}): rolled back by the Crashworthy gate\n\nReverts ${attempt}. ${rec.decision.reasons.filter((r) => r.startsWith("✗")).join(" ")}`);
+    // Roll back the agent only: the attempt's test runs, brief and snapshot stay on the record.
+    git("checkout", `${attempt}~1`, "--", "src/dummy");
+    git("commit", "-q", "-m", `revert(${rec.candidate}): rolled back by the Crashworthy gate\n\nReverts the agent change in ${attempt}. ${rec.decision.reasons.filter((r) => r.startsWith("✗")).join(" ")}`);
     return { attempt, revert: git("rev-parse", "--short", "HEAD") };
   } catch {
     try {
