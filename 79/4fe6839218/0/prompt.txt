@@ -1,0 +1,49 @@
+no no...I want to mak one last post on my progres...my third and last one please
+
+---
+
+This is probably my last update before submitting for the hackathon. 
+
+The real AI found 8 bugs in our own tests first. It then fixed and pinned every one.
+
+Then the gate rejected 6 of 9 "fixes", incl. one that paid out a refund the policy forbids.
+
+We also planted 10 bugs and caught 10/10. A certification costs 6¢.....make this more comprehensive please
+
+---
+
+no no...just in one post please....not the submission post....just the last post that gives an update in what we were abe to achieve
+
+---
+
+https://x.com/0xnecokizz/status/2109507552283181559?s=20 ....now just prepare the submission post please....almost ready
+
+---
+
+https://x.com/neatlogs/status/2109620501274620160 .... official x post on submission...🔗 official launch post: x.com/bettersayAJ/st…
+
+👉 quote-tweet this post.
+
+👉 don't forget to tag @neatlogs, @EntireHQ, and @arithecfo. the quote-tweet and all three tags are mandatory for our systems to detect your submission.
+
+👉 once you've posted, fill out the #neatHack submission form: neatlogs.com/submission
+
+⭐ bonus points if your demo video clearly explains the problem and your solution.
+
+⏰ submissions close at 11:55 PM IST. Discord is the source of truth for any final cutoff updates.
+
+---
+
+@"/root/.claude/uploads/3dc7cf1a-3288-5796-b7a7-61af933f6e29/79385818-STiim6VM4pyF2DHM.mp4" Use this video to guide demo video making...polish UI....and give me all necessary details including tweet etc for submitting...10 minutes to go
+
+---
+
+Ok...but just check how well we align
+
+---
+
+Please in two sentences each, explain without em dashes, colons how you used the three platforms as humanly as possible
+
+---
+
+done,  submitted...take a bottle of compute...I do wonder why we never actually pushed or merged anything here
